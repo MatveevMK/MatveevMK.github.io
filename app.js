@@ -85,3 +85,28 @@ new ResizeObserver(resizeSlide).observe(slides[0]);
 new ResizeObserver(resizeSlide).observe(slides[1]);
 document.querySelector('a[href="#luma-details"]').addEventListener('click', () => { more.open = true; });
 showSlide(0);
+
+const catalogButtons = [...document.querySelectorAll('[data-project]')];
+catalogButtons.forEach(button => button.addEventListener('click', () => {
+ showSlide(Number(button.dataset.project));
+ carousel.scrollIntoView({behavior: document.documentElement.classList.contains('motion-off') ? 'instant' : 'smooth', block:'start'});
+}));
+// Keep both the overview and the detailed selector synchronized.
+const originalShowSlide = showSlide;
+showSlide = function(index) {
+ originalShowSlide(index);
+ catalogButtons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === activeSlide)));
+};
+const motionButton = document.querySelector('#motion-toggle');
+let motionOff = matchMedia('(prefers-reduced-motion: reduce)').matches;
+try { const saved = localStorage.getItem('portfolio-motion'); if (saved !== null) motionOff = saved === 'off'; } catch {}
+function applyMotion() {
+ document.documentElement.classList.toggle('motion-off', motionOff);
+ motionButton.setAttribute('aria-pressed', String(motionOff));
+ motionButton.textContent = `Анимации: ${motionOff ? 'выключены' : 'включены'}`;
+}
+motionButton.addEventListener('click', () => {
+ motionOff = !motionOff; applyMotion();
+ try { localStorage.setItem('portfolio-motion', motionOff ? 'off' : 'on'); } catch {}
+});
+applyMotion();
