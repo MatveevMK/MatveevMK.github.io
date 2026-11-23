@@ -33,6 +33,7 @@ async function selectProduct(id) {
  outgoing.hidden = false;
  const fromHeight = stage.getBoundingClientRect().height;
  stage.style.height = `${fromHeight}px`;
+ stage.dataset.product = id;
  selected = id;
  products.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.product === id)));
  panels.forEach(p => { p.inert = true; p.setAttribute('aria-hidden', 'true'); if (p !== outgoing) p.hidden = true; });
@@ -40,14 +41,14 @@ async function selectProduct(id) {
  incoming.classList.add('entering');
  const toHeight = incoming.getBoundingClientRect().height;
  if (!noMotion()) {
-  const options = {duration:650, easing:'cubic-bezier(.22,1,.36,1)', fill:'both'};
+  const options = {duration:420, easing:'cubic-bezier(.22,1,.36,1)', fill:'both'};
   animations = [
-   outgoing.animate([{opacity:1,transform:'translateX(0) rotateY(0) scale(1)',filter:'blur(0px)'},{opacity:0,transform:`translateX(${-direction*22}%) rotateY(${direction*9}deg) scale(.92)`,filter:'blur(5px)'}],{...options,duration:440}),
-   incoming.animate([{opacity:0,transform:`translateX(${direction*28}%) rotateY(${-direction*9}deg) scale(.94)`,filter:'blur(5px)'},{opacity:1,transform:'translateX(0) rotateY(0) scale(1)',filter:'blur(0px)'}],options),
-   stage.animate([{height:`${fromHeight}px`},{height:`${toHeight}px`}],options)
+   outgoing.animate([{opacity:1,transform:'translateX(0)',filter:'blur(0px)'},{opacity:0,transform:`translateX(${-direction*26}px)`,filter:'blur(0px)'}],{...options,duration:280}),
+   incoming.animate([{opacity:0,transform:`translateX(${direction*30}px)`,filter:'blur(0px)'},{opacity:1,transform:'translateX(0)',filter:'blur(0px)'}],options),
+   stage.animate([{height:`${fromHeight}px`},{height:`${Math.max(fromHeight,toHeight)}px`}],options)
   ];
   for (const element of incoming.querySelectorAll('.eyebrow,h3,.lead,.tags,.project-actions,.dashboard-mock,.demo-window')) {
-   animations.push(element.animate([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'translateY(0)'}],{...options,duration:450,delay:90}));
+   animations.push(element.animate([{opacity:0,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{...options,duration:320,delay:50}));
   }
   await Promise.allSettled(animations.map(a => a.finished));
  }
@@ -100,7 +101,7 @@ for (const panel of panels) {
  const mock = document.createElement('div'); mock.className='visual-mock';
  mock.append(...visual.childNodes);
  const placeholder=document.createElement('div'); placeholder.className='screenshot-slot'; placeholder.hidden=true;
- placeholder.innerHTML='<span class="screenshot-icon" aria-hidden="true">▣</span><h4>Скриншоты скоро</h4><p>Реальный интерфейс пока не добавлен.<br>Здесь будет галерея продукта.</p>';
+ placeholder.innerHTML='<span class="screenshot-icon" aria-hidden="true">▣</span><h4>Скриншот скоро появится</h4><p>Реальный интерфейс пока не добавлен.<br>Здесь будет галерея продукта.</p>';
  if (panel.id==='product-bi') placeholder.innerHTML='<span class="screenshot-icon" aria-hidden="true">◈</span><h4>Это концепт</h4><p>Демонстрационный дизайн дашборда.<br>Скриншотов готового продукта нет.</p>';
  const toggle=document.createElement('button'); toggle.type='button'; toggle.className='preview-toggle'; toggle.setAttribute('aria-pressed','false');toggle.textContent='Реальный интерфейс';
  visual.append(mock,placeholder,toggle);
@@ -119,3 +120,24 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menu.classList.cont
 document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!menuToggle.contains(e.target))closeMenu();});
 matchMedia('(min-width: 851px)').addEventListener('change',()=>closeMenu());
 
+
+// Reserve the same presentation height at each viewport width.
+let catalogWidth = 0;
+function alignPresentations() {
+ if (animations.length) return;
+ const width = stage.clientWidth;
+ if (width === catalogWidth) return;
+ catalogWidth = width;
+ let maximum = 0;
+ panels.forEach(panel => {
+  const wasHidden = panel.hidden;
+  panel.hidden = false;
+  panel.classList.add('measure-panel');
+  maximum = Math.max(maximum, panel.getBoundingClientRect().height);
+  panel.classList.remove('measure-panel');
+  panel.hidden = wasHidden;
+ });
+ stage.style.minHeight = `${Math.ceil(maximum)}px`;
+}
+new ResizeObserver(alignPresentations).observe(stage);
+document.fonts.ready.then(() => { catalogWidth = 0; alignPresentations(); });
