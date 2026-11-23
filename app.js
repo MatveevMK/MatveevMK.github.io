@@ -19,45 +19,23 @@ const products = [...document.querySelectorAll('[data-product]')];
 const panels = [...stage.querySelectorAll('.product-panel')];
 const filters = [...document.querySelectorAll('[data-filter]')];
 let selected = 'luma';
-let changeId = 0;
-let animations = [];
-async function selectProduct(id) {
+let panelAnimation;
+function selectProduct(id) {
  if (id === selected) return;
- const run = ++changeId;
- animations.forEach(a => a.cancel()); animations = [];
- const outgoing = document.querySelector(`#product-${selected}`);
- const incoming = document.querySelector(`#product-${id}`);
- const backwards = products.findIndex(b => b.dataset.product === id) < products.findIndex(b => b.dataset.product === selected);
- const direction = backwards ? -1 : 1;
- panels.forEach(p => p.classList.remove("entering"));
- outgoing.hidden = false;
- const fromHeight = stage.getBoundingClientRect().height;
- stage.style.height = `${fromHeight}px`;
- stage.dataset.product = id;
+ if (panelAnimation) panelAnimation.cancel();
  selected = id;
- products.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.product === id)));
- panels.forEach(p => { p.inert = true; p.setAttribute('aria-hidden', 'true'); if (p !== outgoing) p.hidden = true; });
- incoming.hidden = false;
- incoming.classList.add('entering');
- const toHeight = incoming.getBoundingClientRect().height;
- if (!noMotion()) {
-  const options = {duration:420, easing:'cubic-bezier(.22,1,.36,1)', fill:'both'};
-  animations = [
-   outgoing.animate([{opacity:1,transform:'translateX(0)',filter:'blur(0px)'},{opacity:0,transform:`translateX(${-direction*26}px)`,filter:'blur(0px)'}],{...options,duration:280}),
-   incoming.animate([{opacity:0,transform:`translateX(${direction*30}px)`,filter:'blur(0px)'},{opacity:1,transform:'translateX(0)',filter:'blur(0px)'}],options),
-   stage.animate([{height:`${fromHeight}px`},{height:`${Math.max(fromHeight,toHeight)}px`}],options)
-  ];
-  for (const element of incoming.querySelectorAll('.eyebrow,h3,.lead,.tags,.project-actions,.dashboard-mock,.demo-window')) {
-   animations.push(element.animate([{opacity:0,transform:'translateY(7px)'},{opacity:1,transform:'translateY(0)'}],{...options,duration:320,delay:50}));
-  }
-  await Promise.allSettled(animations.map(a => a.finished));
- }
- if (run !== changeId) return;
- animations.forEach(a => a.cancel()); animations = [];
- panels.forEach(p => { const active = p === incoming; p.hidden = !active; p.inert = !active; p.classList.remove('entering'); p.setAttribute('aria-hidden', String(!active)); });
- stage.style.height = '';
- const visible = products.filter(b => !b.hidden);
- document.querySelector('.selection-status').textContent = `${incoming.dataset.name} · проект ${visible.findIndex(b => b.dataset.product === id)+1} из ${visible.length}`;
+ stage.dataset.product = id;
+ const incoming = document.querySelector(`#product-${id}`);
+ panels.forEach(panel => {
+  const active = panel === incoming;
+  panel.hidden = !active;
+  panel.inert = !active;
+  panel.setAttribute('aria-hidden', String(!active));
+ });
+ products.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.product === id)));
+ if (!noMotion()) panelAnimation = incoming.animate([{opacity:.25},{opacity:1}],{duration:220,easing:'ease-out'});
+ const visible = products.filter(button => !button.hidden);
+ document.querySelector('.selection-status').textContent = `${incoming.dataset.name} · проект ${visible.findIndex(button => button.dataset.product === id)+1} из ${visible.length}`;
 }
 products.forEach(button => button.addEventListener('click', () => selectProduct(button.dataset.product)));
 filters.forEach(button => button.addEventListener('click', () => {
@@ -109,7 +87,7 @@ for (const panel of panels) {
   const showing=toggle.getAttribute('aria-pressed')==='true';
   toggle.setAttribute('aria-pressed',String(!showing));mock.hidden=!showing;placeholder.hidden=showing;
   toggle.textContent=showing?'Реальный интерфейс':'Вернуть иллюстрацию';
-  if(!noMotion()) (showing?mock:placeholder).animate([{opacity:0,transform:'translateY(10px) scale(.98)'},{opacity:1,transform:'translateY(0) scale(1)'}],{duration:320,easing:'ease-out'});
+  if(!noMotion()) (showing?mock:placeholder).animate([{opacity:.3},{opacity:1}],{duration:220,easing:'ease-out'});
  });
 }
 const menuToggle=document.querySelector('.menu-toggle'),menu=document.querySelector('#main-nav');
@@ -121,23 +99,3 @@ document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!menuToggle.c
 matchMedia('(min-width: 851px)').addEventListener('change',()=>closeMenu());
 
 
-// Reserve the same presentation height at each viewport width.
-let catalogWidth = 0;
-function alignPresentations() {
- if (animations.length) return;
- const width = stage.clientWidth;
- if (width === catalogWidth) return;
- catalogWidth = width;
- let maximum = 0;
- panels.forEach(panel => {
-  const wasHidden = panel.hidden;
-  panel.hidden = false;
-  panel.classList.add('measure-panel');
-  maximum = Math.max(maximum, panel.getBoundingClientRect().height);
-  panel.classList.remove('measure-panel');
-  panel.hidden = wasHidden;
- });
- stage.style.minHeight = `${Math.ceil(maximum)}px`;
-}
-new ResizeObserver(alignPresentations).observe(stage);
-document.fonts.ready.then(() => { catalogWidth = 0; alignPresentations(); });
